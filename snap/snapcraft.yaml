@@ -1,0 +1,50 @@
+name: xdmcp-client
+version: '0.1'
+summary: An XDMCP client to be used with mir-kiosk
+description: |
+  This snap allows you to run an XDMCP session on an Ubuntu Core device on
+  top of the mir-kiosk snap.
+
+grade: stable
+confinement: strict
+
+apps:
+  xephyr:
+    command: xwayland-kiosk-launch $SNAP/launcher
+    environment:
+      WAYLAND_SOCKET_DIR: $SNAP_DATA/wayland
+      XWAYLAND_FULLSCREEN_WINDOW_HINT: title="xephyr"
+    daemon: simple
+    plugs:
+      - x11-plug
+      - wayland
+      - opengl
+      - network
+      - network-bind
+    slots: [ x11 ]
+
+plugs:
+  wayland-socket-dir:
+    content: wayland-socket-dir
+    interface: content
+    target: $SNAP_DATA/wayland
+    default-provider: mir-kiosk
+  x11-plug:
+    interface: x11
+
+passthrough:
+  layout:
+    /usr/bin/xkbcomp:
+      symlink: $SNAP/usr/bin/xkbcomp
+
+parts:
+  xephyr:
+    plugin: nil
+    after: [ xwayland-kiosk-helper ]
+    override-build: |
+      cp gtkrc $SNAPCRAFT_PART_INSTALL/
+      cp launcher $SNAPCRAFT_PART_INSTALL/
+    stage-packages:
+      - xserver-xephyr
+      - x11-xkb-utils
+      - yad
