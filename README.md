@@ -26,6 +26,7 @@ snap connect xdmcp-client:x11-plug xdmcp-client:x11
 #### Restart the xdmcp-client snap
 
 snap stop xdmcp-client
+
 snap start xdmcp-client
 
 ## Running
