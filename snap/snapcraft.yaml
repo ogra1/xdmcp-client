@@ -44,8 +44,6 @@ parts:
     override-build: |
       cp gtkrc $SNAPCRAFT_PART_INSTALL/
       cp launcher $SNAPCRAFT_PART_INSTALL/
-      cp icon.png $SNAPCRAFT_PART_INSTALL/
-      cp xdmcp-client.desktop $SNAPCRAFT_PART_INSTALL/
     stage-packages:
       - xserver-xephyr
       - x11-xkb-utils
