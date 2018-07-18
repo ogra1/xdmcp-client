@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=XDMCP Kiosk Client
+Comment=Run an XDMCP Client in Kiosk mode on mir-kiosk
+Icon=${SNAP}/meta/gui/icon.png
+Exec=xdmcp-client.xephyr
+Terminal=false
+Categories=Utility;
