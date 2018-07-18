@@ -22,7 +22,6 @@ apps:
       - network
       - network-bind
     slots: [ x11 ]
-    desktop: xdmcp-client.desktop
 
 plugs:
   wayland-socket-dir:
