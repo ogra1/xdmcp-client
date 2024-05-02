@@ -1,0 +1,10 @@
+#! /bin/sh
+
+XDMCP=$(snapctl get xdmcp-server)
+
+if [ -n "$XDMCP" ]; then
+    # start the daemon
+    if snapctl services "$SNAP_INSTANCE_NAME" | grep -q inactive; then
+      snapctl start --enable "$SNAP_INSTANCE_NAME" 2>&1 || true
+    fi
+fi

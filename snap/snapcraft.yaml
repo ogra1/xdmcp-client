@@ -1,50 +1,143 @@
 name: xdmcp-client
-version: '0.1'
-summary: An XDMCP client to be used with mir-kiosk
+version: '0.2'
+summary: An XDMCP client to be used with ubuntu-frame
 description: |
   This snap allows you to run an XDMCP session on an Ubuntu Core device on
-  top of the mir-kiosk snap.
-
-grade: stable
+  top of the ubuntu-frame snap.
 confinement: strict
+compression: lzo
+grade: stable
+base: core22
 
 apps:
-  xephyr:
-    command: xwayland-kiosk-launch $SNAP/launcher
-    environment:
-      WAYLAND_SOCKET_DIR: $SNAP_DATA/wayland
-      XWAYLAND_FULLSCREEN_WINDOW_HINT: title="xephyr"
-    daemon: simple
-    plugs:
-      - x11-plug
-      - wayland
+  xdmcp-client:
+    command-chain: &_command-chain
+      - bin/graphics-core22-wrapper
+      - bin/wayland-launch
+      - bin/setup-mir
+      - bin/setup-x11
+      - usr/local/bin/x11_kiosk_launch
+    command: &_command usr/bin/xdmcp-launch
+    plugs: &_plugs
       - opengl
+      - wayland
       - network
-      - network-bind
-    slots: [ x11 ]
+      - network-bind   # For Mir (to serve X11)
+      - hardware-observe
+      - log-observe
 
+  daemon:
+    daemon: simple
+    restart-delay: 3s
+    restart-condition: always
+    install-mode: disable
+    command-chain: *_command-chain
+    command: *_command
+    plugs: *_plugs
+
+# This is one of four snippets that relate to providing the userspace graphics needed by your application.
+# You can treat this as "magic" so long as you don't need to make changes.
+# On the Mir website there's a lot more detail on [the graphics-core22 Snap interface](https://mir-server.io/docs/the-graphics-core22-snap-interface) and it's use.
 plugs:
-  wayland-socket-dir:
-    content: wayland-socket-dir
+  graphics-core22:
     interface: content
-    target: $SNAP_DATA/wayland
-    default-provider: mir-kiosk
-  x11-plug:
-    interface: x11
+    target: $SNAP/graphics
+    default-provider: mesa-core22
 
-passthrough:
-  layout:
-    /usr/bin/xkbcomp:
-      symlink: $SNAP/usr/bin/xkbcomp
+
+environment:
+  # Other, generally useful environment settings...
+  # XDG config
+  XDG_CACHE_HOME:  $SNAP_USER_COMMON/.cache
+  XDG_CONFIG_HOME: $SNAP_USER_DATA/.config
+  XDG_CONFIG_DIRS: $SNAP/etc/xdg
+  XDG_DATA_DIRS:   $SNAP/usr/local/share:$SNAP/usr/share
+  # XKB config
+  XKB_CONFIG_ROOT: $SNAP/usr/share/X11/xkb
+
+# The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
+layout:
+  /usr/share/libdrm:
+    bind: $SNAP/graphics/libdrm
+  /usr/share/drirc.d:
+    symlink: $SNAP/graphics/drirc.d
+  # X11
+  /usr/bin/xkbcomp:
+    symlink: $SNAP/usr/bin/xkbcomp
+  /usr/share/X11:
+    bind: $SNAP/usr/share/X11
 
 parts:
-  xephyr:
+  launcher:
+    plugin: dump
+    source: launcher
+    organize:
+      xdmcp-launch: usr/bin/xdmcp-launch
+
+  xnest:
     plugin: nil
-    after: [ xwayland-kiosk-helper ]
-    override-build: |
-      cp gtkrc $SNAPCRAFT_PART_INSTALL/
-      cp launcher $SNAPCRAFT_PART_INSTALL/
     stage-packages:
-      - xserver-xephyr
-      - x11-xkb-utils
-      - yad
+      - xnest
+      - x11-xserver-utils
+
+  # A simple kiosk for X11 on Wayland
+  mir-kiosk-x11:
+    plugin: cmake
+    source: https://github.com/MirServer/mir_kiosk_x11.git
+    build-packages:
+      - pkg-config
+      - libmiral-dev
+      - make
+      - g++
+    stage-packages:
+      - libmiral4
+      - mir-platform-graphics-wayland
+      - dmz-cursor-theme
+      - fonts-freefont-ttf
+      - xwayland
+      - libbz2-1.0
+
+  # Some utility scripts for setting up the X11/Mir
+  env-setup:
+    plugin: dump
+    source: env-setup
+    override-build: |
+      sed --in-place s/\$\{CRAFT_ARCH_TRIPLET}/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/g $CRAFT_PART_BUILD/bin/*
+      craftctl default
+
+  # Some utility scripts for setting up the Wayland environment
+  setup:
+    plugin: dump
+    source: wayland-launch
+    override-build: |
+      # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
+      # You may add further plugs here if you want these options
+      PLUGS="opengl wayland graphics-core22 network-bind"
+      sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/wayland-launch
+      sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/setup.sh
+      craftctl default
+    stage-packages:
+      - inotify-tools
+
+  graphics-core22:
+    after:
+      - xnest
+      - mir-kiosk-x11
+      - env-setup
+      - setup
+    source: https://github.com/MirServer/graphics-core22.git
+    plugin: dump
+    override-prime: |
+      craftctl default
+      ${CRAFT_PART_SRC}/bin/graphics-core22-cleanup mesa-core22 nvidia-core22
+      cd "$CRAFT_PRIME/usr/share/"
+      rm -rf bug drirc.d glvnd libdrm lintian man
+      rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
+             help pkgconfig libthai metainfo themes thumbnailers xml
+    prime:
+      - bin/graphics-core22-wrapper
+
+architectures:
+  - build-on: amd64
+  - build-on: armhf
+  - build-on: arm64

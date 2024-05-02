@@ -1,0 +1,10 @@
+#! /bin/sh
+
+XDMCP=$(snapctl get xdmcp-server)
+
+if [ -n "${XDMCP}" ]; then
+    GEO=$(xrandr -q | grep "^   " | sed 's/^   //;s/ .*$//')
+    Xnest -geometry ${GEO}+0+0 -query "${XDMCP}"
+else
+    echo "Need server IP, please use 'snap set xdmcp-client xdmcp-server=<IP>'"
+fi
