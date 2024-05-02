@@ -1,7 +1,7 @@
 [![Snap Status](https://build.snapcraft.io/badge/ogra1/xdmcp-client.svg)](https://build.snapcraft.io/user/ogra1/xdmcp-client)
 
 # xdmcp-client snap
-Minimal XDMCP thin-client snap to use with mir-kiosk
+Minimal XDMCP thin-client snap to use with ubuntu-frame
 
 ## Install/Setup (on Ubuntu Core)
 
